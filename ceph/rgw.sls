@@ -47,9 +47,12 @@ add_radosgw_keyring:
     - name: |
         ceph --cluster {{ ceph_settings.cluster }} \
              -k {{ ceph_settings.admin_keyring }} \
+             auth del client.radosgw.gateway 
+        ceph --cluster {{ ceph_settings.cluster }} \
+             -k {{ ceph_settings.admin_keyring }} \
              auth add client.radosgw.gateway \
              -i {{ ceph_settings.radosgw_keyring }}
-    - unless: ceph -k {{ ceph_settings.admin_keyring }} auth list | grep '^\[client.radosgw.gateway\]'
+    - unless: cat {{ ceph_settings.radosgw_keyring }} |grep $(ceph -k {{ ceph_settings.admin_keyring }} auth get-key client.radosgw.gateway)
     - watch:
       - cmd: gen_radosgw_keyring
 
@@ -78,7 +81,7 @@ cp.push {{ ceph_settings.radosgw_keyring }}:
     - name: cp.push
     - path: {{ ceph_settings.radosgw_keyring }}
     - watch:
-      - cmd: gen_radosgw_keyring
+      - cmd: add_radosgw_keyring
 
 # RGW
 start_rgw:
