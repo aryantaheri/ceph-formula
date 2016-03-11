@@ -68,6 +68,7 @@ import_keyring:
     - name: |
         ceph-authtool --cluster {{ ceph_settings.cluster }} {{ secret }} \
                       --import-keyring {{ ceph_settings.admin_keyring }}
+    # FIXME: The unless statement is not right
     - unless: ceph-authtool {{ secret }} --list | grep '^\[client.admin\]'
     - watch:
       - cmd: gen_mon_secret

@@ -11,7 +11,7 @@ ceph-common:
     - require:
       - pkgrepo: ceph_repo
 
-{{ ceph_settings.conf_file }}:
+client_{{ ceph_settings.conf_file }}:
   cmd.run:
     - name: echo "Getting ceph configuration file:"
     - unless: test -f {{ ceph_settings.conf_file }}
@@ -24,7 +24,7 @@ cp.get_file {{ mon }}{{ ceph_settings.conf_file }}:
     - path: salt://{{ mon }}/files{{ ceph_settings.conf_file }}
     - dest: {{ ceph_settings.conf_file }}
     - watch:
-      - cmd: {{ ceph_settings.conf_file }}
+      - cmd: client_{{ ceph_settings.conf_file }}
 
 {% endfor -%}
 

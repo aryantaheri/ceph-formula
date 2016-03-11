@@ -35,6 +35,7 @@ that differ from whats in defaults.yaml
 {% set cluster = salt['pillar.get']('ceph:cluster_name') -%}
 {% set conf_file = '/etc/ceph/' + cluster + '.conf' -%}
 {% set admin_keyring = '/etc/ceph/' + cluster + '.client.admin.keyring' -%}
+{% set radosgw_keyring = '/etc/ceph/' + cluster + '.client.radosgw.keyring' -%}
 {% set bootstrap_osd_keyring = '/var/lib/ceph/bootstrap-osd/' + cluster + '.keyring' -%}
 {% set host = salt['config.get']('host') -%}
 {% set minion_id = salt['config.get']('id') -%}
@@ -45,6 +46,7 @@ that differ from whats in defaults.yaml
 {%- do ceph_settings.update({ 'cluster'                 : cluster,
                     	      'conf_file'    	       	: conf_file,
 			      'admin_keyring'	       	: admin_keyring,
+			      'radosgw_keyring'	       	: radosgw_keyring,
 		     	      'bootstrap_osd_keyring'   : bootstrap_osd_keyring,
 		     	      'host'		       	: host,
 		     	      'minion_id'	       	: minion_id,
