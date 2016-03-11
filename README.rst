@@ -9,6 +9,8 @@ A saltstack formula for Ceph storage. Based on https://github.com/komljen/ceph-s
     See the full `Salt Formulas installation and usage instructions
     <http://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html>`_.
 
+Make sure that the mines are configured properly, follow ``mine.sls`` example.
+
 Available states
 ================
 
