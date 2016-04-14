@@ -1,0 +1,73 @@
+ceph:
+  nodes:
+    ceph-1:
+      roles:
+        - ceph-mon
+        - ceph-rgw
+    ceph-2:
+      roles:
+        - ceph-osd
+        - ceph-mon
+      devs:
+        vdb:
+          journal: vdb
+    ceph-3:
+      roles:
+        - ceph-osd
+        - ceph-mon
+      devs:
+        vdb:
+          journal: vdb
+    ceph-4:
+      roles:
+        - ceph-osd
+        - ceph-mon
+      devs:
+        vdb:
+          journal: vdb
+
+
+
+  global:
+    cluster_network: 10.0.3.0/24
+    # use uuidgen to generate one
+    fsid: 809c5925-8794-4666-a21e-d2be463ce2a2
+    #ceph-1,2,3,4 294bc494-81ba-4c3c-ac5d-af7b3442a2a5
+    public_network: 10.0.1.0/24
+
+  mon:
+    interface: eth0
+
+#----- These will over-ride default configurations -----#
+  version: firefly
+  cluster_name: ceph
+  client:
+    rbd_cache: "true"
+    rbd_cache_writethrough_until_flush: "true"
+    rbd_cache_size: 134217728
+  osd:
+    crush_chooseleaf_type: 1
+    crush_update_on_start: "true"
+    filestore_merge_threshold: 10
+    filestore_split_multiple: 2
+    filestore_op_threads: 2
+    filestore_max_sync_interval: 5
+    filestore_min_sync_interval: "0.01"
+    filestore_queue_max_ops: 500
+    filestore_queue_max_bytes: 104857600
+    filestore_queue_committing_max_ops: 500
+    filestore_queue_committing_max_bytes: 104857600
+    # osd journal size = {2 * (expected throughput * filestore max sync interval)}
+    journal_size: 100000
+    op_threads: 2
+    disk_threads: 1
+    scrub_load_threshold: "0.5"
+    map_cache_size: 512
+    max_backfills: 2
+    pool_default_min_size: 1
+    # default pg num = (100 * #OSDs) / pool_size
+    pool_default_pg_num: 512
+    pool_default_pgp_num: 512
+    pool_default_size: 3
+
+  
