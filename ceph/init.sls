@@ -6,4 +6,6 @@ include:
   - ceph.repo
   - ceph.install
   - ceph.config
-#  - ceph.service
+  - ceph.mon
+  - ceph.osd
+  - ceph.rgw
