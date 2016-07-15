@@ -69,3 +69,40 @@ ceph:
     pool_erasure_code_profile: ""
     pool_ruleset_name: ""
     pool_ruleset_num: ""
+  openstack:
+    glance:
+      pools:
+        - name: glance-images
+          size: 3
+          pool_pg_num: 256
+          pool_pgp_num: 256
+      users:
+        - name: client.glance
+          mon: 'allow r' 
+          osd: 'allow class-read object_prefix rbd_children, allow rwx pool=glance-images'
+    cinder:
+      pools:
+        - name: cinder-backup
+          size: 3
+          pool_pg_num: 1024
+          pool_pgp_num: 1024
+        - name: cinder-volumes
+          size: 3
+          pool_pg_num: 4096
+          pool_pgp_num: 4096
+      users:
+        - name: client.cinder
+          mon: 'allow r' 
+          osd: 'allow class-read object_prefix rbd_children, allow rwx pool=cinder-volumes, allow rwx pool=ephemeral-vms, allow rx pool=glance-images'
+        - name: client.cinder-backup
+          mon: 'allow r' 
+          osd: 'allow class-read object_prefix rbd_children, allow rwx pool=cinder-backup'
+    nova:
+      pools:
+        - name: ephemeral-vms
+          size: 3
+          pool_pg_num: 512
+          pool_pgp_num: 512
+
+
+

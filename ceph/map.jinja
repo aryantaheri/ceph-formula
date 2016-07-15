@@ -33,6 +33,7 @@ that differ from whats in defaults.yaml
 %}
 
 {% set cluster = salt['pillar.get']('ceph:cluster_name') -%}
+{% set conf_dir = '/etc/ceph/' -%}
 {% set conf_file = '/etc/ceph/' + cluster + '.conf' -%}
 {% set admin_keyring = '/etc/ceph/' + cluster + '.client.admin.keyring' -%}
 {% set radosgw_keyring = '/etc/ceph/' + cluster + '.client.radosgw.keyring' -%}
@@ -45,6 +46,7 @@ that differ from whats in defaults.yaml
 
 {%- do ceph_settings.update({ 'cluster'                 : cluster,
                     	      'conf_file'    	       	: conf_file,
+                    	      'conf_dir'    	       	: conf_dir,
 			      'admin_keyring'	       	: admin_keyring,
 			      'radosgw_keyring'	       	: radosgw_keyring,
 		     	      'bootstrap_osd_keyring'   : bootstrap_osd_keyring,
