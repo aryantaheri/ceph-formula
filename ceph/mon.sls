@@ -1,127 +1,152 @@
 # -*- coding: utf-8 -*-
 # vim: ft=sls
 
-{% from "ceph/map.jinja" import ceph_settings with context %}
-{% set ip = salt['network.ip_addrs'](ceph_settings.mon_interface)[0] -%}
-{% set secret = '/var/lib/ceph/tmp/' + ceph_settings.cluster + '.mon.keyring' -%}
-{% set monmap = '/var/lib/ceph/tmp/' + ceph_settings.cluster + 'monmap' -%}
+{% from "ceph/map.jinja" import global_settings as gs with context %}
+{% from "ceph/map.jinja" import mon_settings as ms with context %}
+{% set ip = salt['network.ip_addrs'](ms.interface)[0] -%}
+{% set secret = gs.tmp_dir + '/' + gs.cluster + '.mon.keyring' -%}
+{% set monmap = gs.tmp_dir + '/' + gs.cluster + 'monmap' -%}
+{% set mfs = gs.minionfs_dir -%}
 
 include:
-  - .roles
   - .repo
   - .install
   - .config
 
-{{ ceph_settings.admin_keyring }}:
+{{ gs.admin_keyring }}:
   cmd.run:
     - name: echo "Getting admin keyring"
-    - unless: test -f {{ ceph_settings.admin_keyring }}
+    - unless: test -f {{ gs.admin_keyring }}
 
-{% for mon in salt['mine.get']('roles:ceph-mon','ip_map','grain') -%}
+{% for mon in salt['mine.get']('ceph:mon:enabled:true','ip_map','pillar') -%}
 
-cp.get_file {{ mon }}{{ ceph_settings.admin_keyring }}:
+cp.get_file {{ mfs }}/{{ mon }}{{ gs.admin_keyring }}:
   module.wait:
     - name: cp.get_file
-    - path: salt://{{ mon }}/files{{ ceph_settings.admin_keyring }}
-    - dest: {{ ceph_settings.admin_keyring }}
+    - path: salt://{{ mfs }}/{{ mon }}/files{{ gs.admin_keyring }}
+    - dest: {{ gs.admin_keyring }}
     - watch:
-      - cmd: {{ ceph_settings.admin_keyring }}
+      - cmd: {{ gs.admin_keyring }}
 
 {% endfor -%}
 
 get_mon_secret:
   cmd.run:
-    - name: ceph --cluster {{ ceph_settings.cluster }} auth get mon. -o {{ secret }}
-    - onlyif: test -f {{ ceph_settings.admin_keyring }}
+    - name: ceph --cluster {{ gs.cluster }} auth get mon. -o {{ secret }}
+    - onlyif: test -f {{ gs.admin_keyring }}
     - unless: test -f {{ secret }}
 
 get_mon_map:
   cmd.run:
-    - name: ceph --cluster {{ ceph_settings.cluster }} mon getmap -o {{ monmap }}
-    - onlyif: test -f {{ ceph_settings.admin_keyring }}
+    - name: ceph --cluster {{ gs.cluster }} mon getmap -o {{ monmap }}
+    - onlyif: test -f {{ gs.admin_keyring }}
     - unless: test -f {{ monmap }}
 
 gen_mon_secret:
   cmd.run:
     - name: |
-        ceph-authtool --cluster {{ ceph_settings.cluster }} \
+        ceph-authtool --cluster {{ gs.cluster }} \
                       --create-keyring {{ secret }} \
                       --gen-key -n mon. \
                       --cap mon 'allow *'
-    - unless: test -f /var/lib/ceph/mon/{{ ceph_settings.cluster }}-{{ ceph_settings.minion_id }}/keyring || test -f {{ secret }}
+    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/keyring || test -f {{ secret }}
+
+set_mon_secret_permissions:
+  file.managed:
+    - name: {{ secret }}
+    - user: {{ gs.ceph_user }}
+    - group: {{ gs.ceph_group }}
+    - watch:
+        - cmd: gen_mon_secret
+        - cmd: get_mon_secret
 
 gen_admin_keyring:
   cmd.run:
     - name: |
-        ceph-authtool --cluster {{ ceph_settings.cluster }} \
-                      --create-keyring {{ ceph_settings.admin_keyring }} \
+        ceph-authtool --cluster {{ gs.cluster }} \
+                      --create-keyring {{ gs.admin_keyring }} \
                       --gen-key -n client.admin \
                       --set-uid=0 \
                       --cap mon 'allow *' \
                       --cap osd 'allow *' \
                       --cap mds 'allow'
-    - unless: test -f /var/lib/ceph/mon/{{ ceph_settings.cluster }}-{{ ceph_settings.minion_id }}/keyring || test -f {{ ceph_settings.admin_keyring }}
-
+    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/keyring || test -f {{ gs.admin_keyring }}
 
 import_keyring:
   cmd.wait:
     - name: |
-        ceph-authtool --cluster {{ ceph_settings.cluster }} {{ secret }} \
-                      --import-keyring {{ ceph_settings.admin_keyring }}
+        ceph-authtool --cluster {{ gs.cluster }} {{ secret }} \
+                      --import-keyring {{ gs.admin_keyring }}
     # FIXME: The unless statement is not right
     - unless: ceph-authtool {{ secret }} --list | grep '^\[client.admin\]'
     - watch:
       - cmd: gen_mon_secret
       - cmd: gen_admin_keyring
 
-cp.push {{ ceph_settings.admin_keyring }}:
+cp.push {{ gs.admin_keyring }}:
   module.wait:
     - name: cp.push
-    - path: {{ ceph_settings.admin_keyring }}
+    - path: {{ gs.admin_keyring }}
     - watch:
       - cmd: gen_admin_keyring
 
 gen_mon_map:
   cmd.run:
     - name: |
-        monmaptool --cluster {{ ceph_settings.cluster }} \
+        monmaptool --cluster {{ gs.cluster }} \
                    --create \
-                   --add {{ ceph_settings.minion_id }} {{ ip }} \
-                   --fsid {{ ceph_settings.fsid }} {{ monmap }}
+                   --add {{ gs.host_fqdn }} {{ ip }} \
+                   --fsid {{ gs.fsid }} {{ monmap }}
     - unless: test -f {{ monmap }}
 
 populate_mon:
   cmd.run:
     - name: |
-        ceph-mon --cluster {{ ceph_settings.cluster }} \
-                 --mkfs -i {{ ceph_settings.minion_id }} \
+        ceph-mon --cluster {{ gs.cluster }} \
+                 --setuser {{ gs.ceph_user }} \
+                 --setgroup {{ gs.ceph_group }} \
+                 --mkfs -i {{ gs.host_fqdn }} \
                  --monmap {{ monmap }} \
                  --keyring {{ secret }}
-    - unless: test -d /var/lib/ceph/mon/{{ ceph_settings.cluster }}-{{ ceph_settings.minion_id }}
+    - unless: test -d /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}
+
+{{ gs.cluster }}_{{ gs.host_fqdn }}_done:
+  file.touch:
+    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/done
+    - require:
+        - cmd: populate_mon
+
+set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph:
+  file.append:
+    - name: /etc/default/ceph
+    - text: "CLUSTER={{ gs.cluster }}"
+    - require:
+      - file: {{ gs.cluster }}_{{ gs.host_fqdn }}_done
 
 start_mon:
-  cmd.run:
-    - name: start ceph-mon id={{ ceph_settings.minion_id }} cluster={{ ceph_settings.cluster }}
-    - unless: status ceph-mon id={{ ceph_settings.minion_id }} cluster={{ ceph_settings.cluster }}
+  service.running:
+    - name: ceph-mon@{{ gs.host_fqdn }}.service
     - require:
-      - cmd: populate_mon
+      - file: set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph
 
-osd_keyring_wait:
+{% for service in 'osd', 'mds', 'rgw' %}
+{{ service }}_bootstrap_keyring_wait:
   cmd.wait:
-    - name: while ! test -f {{ ceph_settings.bootstrap_osd_keyring }}; do sleep 1; done
+    - name: while ! test -f {{ gs.bootstrap_keyrings.get(service) }}; do sleep 0.2; done
     - timeout: 30
     - watch:
-      - cmd: start_mon
+      - service: start_mon
 
-cp.push {{ ceph_settings.bootstrap_osd_keyring }}:
+cp.push {{ gs.bootstrap_keyrings.get(service) }}:
   module.wait:
     - name: cp.push
-    - path: {{ ceph_settings.bootstrap_osd_keyring }}
+    - path: {{ gs.bootstrap_keyrings.get(service) }}
     - watch:
-      - cmd: osd_keyring_wait
+      - cmd: {{ service }}_bootstrap_keyring_wait
+{% endfor %}
 
-/var/lib/ceph/mon/{{ ceph_settings.cluster }}-{{ ceph_settings.minion_id }}/done:
-  file.touch: []
-
-/var/lib/ceph/mon/{{ ceph_settings.cluster }}-{{ ceph_settings.minion_id }}/upstart:
-  file.touch: []
+{{ gs.cluster }}_{{ gs.host_fqdn }}_upstart:
+  file.touch:
+    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/upstart
+    - require:
+        - service: start_mon
