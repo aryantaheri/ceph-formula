@@ -126,8 +126,12 @@ set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph:
 start_mon:
   service.running:
     - name: ceph-mon@{{ gs.host_fqdn }}.service
+    - enable: true
     - require:
       - file: set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph
+      - file: {{ gs.conf_file }}
+    - watch:
+      - file: {{ gs.conf_file }}
 
 {% for service in 'osd', 'mds', 'rgw' %}
 {{ service }}_bootstrap_keyring_wait:
