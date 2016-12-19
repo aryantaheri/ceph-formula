@@ -1,36 +1,65 @@
-# -*- coding: utf-8 -*-
-# vim: ft=jinja
+{% set global_settings = salt['grains.filter_by']({
+    'Debian': {
+    },
+    'RedHat': {
+    },
+}, merge=salt['pillar.get']('ceph:global')) %}
 
-{## Start with  defaults from defaults.sls ##}
-{% import_yaml 'ceph/defaults.yaml' as default_settings %}
+{% set mon_settings = salt['grains.filter_by']({
+    'Debian': {
+        'pkgs': ['ceph-mon', 'ceph-common'],
+        'services': [],
+    },
+    'RedHat': {
+        'pkgs': ['ceph', 'ceph-common'],
+        'services': [],
+    },
+}, merge=salt['pillar.get']('ceph:mon')) %}
 
-{##
-Setup variable using grains['os_family'] based logic, only add key:values here
-that differ from whats in defaults.yaml
-##}
-{% set os_family_map = salt['grains.filter_by']({
-        'Debian': {},
-        'Suse': {},
-        'Arch': {
-            "pkg" : 'template-arch',
-        },
-        'RedHat': {
-            "config": '/etc/template.conf',
-        },
-  }
-  , grain="os_family"
-  , merge=salt['pillar.get']('ceph:lookup'))
-%}
-{## Merge the flavor_map to the default settings ##}
-{% do default_settings.ceph.update(os_family_map) %}
+{% set osd_settings = salt['grains.filter_by']({
+    'Debian': {
+        'pkgs': ['ceph', 'ceph-common'],
+        'services': [],
+    },
+    'RedHat': {
+        'pkgs': ['ceph', 'ceph-common'],
+        'services': [],
+    },
+}, merge=salt['pillar.get']('ceph:osd')) %}
 
-{## Merge in ceph:lookup pillar ##}
-{% set ceph_settings = salt['pillar.get'](
-        'ceph',
-        default=default_settings.ceph,
-        merge=True
-    )
-%}
+{% set mds_settings = salt['grains.filter_by']({
+    'Debian': {
+        'pkgs': [],
+        'services': [],
+    },
+    'RedHat': {
+        'pkgs': [],
+        'services': [],
+    },
+}, merge=salt['pillar.get']('ceph:mds')) %}
+
+{% set rgw_settings = salt['grains.filter_by']({
+    'Debian': {
+        'pkgs': [],
+        'services': [],
+    },
+    'RedHat': {
+        'pkgs': [],
+        'services': [],
+    },
+}, merge=salt['pillar.get']('ceph:rgw')) %}
+
+{% set client_settings = salt['grains.filter_by']({
+    'Debian': {
+        'pkgs': ['ceph-common'],
+        'services': [],
+    },
+    'RedHat': {
+        'pkgs': ['ceph-common'],
+        'services': [],
+    },
+}, merge=salt['pillar.get']('ceph:client')) %}
+
 
 {% set cluster = salt['pillar.get']('ceph:cluster_name') -%}
 {% set conf_dir = '/etc/ceph/' -%}
@@ -40,11 +69,13 @@ that differ from whats in defaults.yaml
 {% set bootstrap_osd_keyring = '/var/lib/ceph/bootstrap-osd/' + cluster + '.keyring' -%}
 {% set host = salt['config.get']('host') -%}
 {% set minion_id = salt['config.get']('id') -%}
+{% set minion_oscodename = salt['config.get']('oscodename') -%}
 {% set mon_interface = salt['pillar.get']('ceph:mon:interface') -%}
 {% set fsid = salt['pillar.get']('ceph:global:fsid') -%}
 
 
-{%- do ceph_settings.update({ 'cluster'                 : cluster,
+{#
+{%- do xceph_settings.update({ 'cluster'                 : cluster,
                     	      'conf_file'    	       	: conf_file,
                     	      'conf_dir'    	       	: conf_dir,
 			      'admin_keyring'	       	: admin_keyring,
@@ -52,6 +83,8 @@ that differ from whats in defaults.yaml
 		     	      'bootstrap_osd_keyring'   : bootstrap_osd_keyring,
 		     	      'host'		       	: host,
 		     	      'minion_id'	       	: minion_id,
+		     	      'minion_oscodename'      	: minion_oscodename,
 		     	      'mon_interface'	       	: mon_interface,
 		     	      'fsid'		       	: fsid,
                    }) %}
+#}

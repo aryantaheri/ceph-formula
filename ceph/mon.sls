@@ -23,7 +23,7 @@ include:
 cp.get_file {{ mfs }}/{{ mon }}{{ gs.admin_keyring }}:
   module.wait:
     - name: cp.get_file
-    - path: salt://{{ mfs }}/{{ mon }}/files{{ gs.admin_keyring }}
+    - path: salt://{{ mfs }}/{{ mon }}{{ gs.admin_keyring }}
     - dest: {{ gs.admin_keyring }}
     - watch:
       - cmd: {{ gs.admin_keyring }}
@@ -49,7 +49,7 @@ gen_mon_secret:
                       --create-keyring {{ secret }} \
                       --gen-key -n mon. \
                       --cap mon 'allow *'
-    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/keyring || test -f {{ secret }}
+    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.mon_id }}/keyring || test -f {{ secret }}
 
 set_mon_secret_permissions:
   file.managed:
@@ -70,7 +70,7 @@ gen_admin_keyring:
                       --cap mon 'allow *' \
                       --cap osd 'allow *' \
                       --cap mds 'allow'
-    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/keyring || test -f {{ gs.admin_keyring }}
+    - unless: test -f /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.mon_id }}/keyring || test -f {{ gs.admin_keyring }}
 
 import_keyring:
   cmd.wait:
@@ -95,7 +95,7 @@ gen_mon_map:
     - name: |
         monmaptool --cluster {{ gs.cluster }} \
                    --create \
-                   --add {{ gs.host_fqdn }} {{ ip }} \
+                   --add {{ gs.mon_id }} {{ ip }} \
                    --fsid {{ gs.fsid }} {{ monmap }}
     - unless: test -f {{ monmap }}
 
@@ -105,31 +105,32 @@ populate_mon:
         ceph-mon --cluster {{ gs.cluster }} \
                  --setuser {{ gs.ceph_user }} \
                  --setgroup {{ gs.ceph_group }} \
-                 --mkfs -i {{ gs.host_fqdn }} \
+                 --mkfs -i {{ gs.mon_id }} \
                  --monmap {{ monmap }} \
                  --keyring {{ secret }}
-    - unless: test -d /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}
+    - unless: test -d /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.mon_id }}
 
-{{ gs.cluster }}_{{ gs.host_fqdn }}_done:
+{{ gs.cluster }}_{{ gs.mon_id }}_done:
   file.touch:
-    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/done
+    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.mon_id }}/done
     - require:
         - cmd: populate_mon
 
-set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph:
-  file.append:
-    - name: /etc/default/ceph
-    - text: "CLUSTER={{ gs.cluster }}"
-    - require:
-      - file: {{ gs.cluster }}_{{ gs.host_fqdn }}_done
+#set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph:
+#  file.append:
+#    - name: /etc/default/ceph
+#    - text: "CLUSTER={{ gs.cluster }}"
+#    - require:
+#      - file: {{ gs.cluster }}_{{ gs.mon_id }}_done
 
 start_mon:
   service.running:
-    - name: ceph-mon@{{ gs.host_fqdn }}.service
+    - name: ceph-mon@{{ gs.mon_id }}.service
     - enable: true
     - require:
-      - file: set_cluster_name_{{ gs.cluster }}_in_/etc/default/ceph
+      - file: {{ gs.cluster }}_{{ gs.mon_id }}_done
       - file: {{ gs.conf_file }}
+      - service: stop_ceph-create-key_service
     - watch:
       - file: {{ gs.conf_file }}
 
@@ -149,8 +150,8 @@ cp.push {{ gs.bootstrap_keyrings.get(service) }}:
       - cmd: {{ service }}_bootstrap_keyring_wait
 {% endfor %}
 
-{{ gs.cluster }}_{{ gs.host_fqdn }}_upstart:
+{{ gs.cluster }}_{{ gs.mon_id }}_upstart:
   file.touch:
-    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.host_fqdn }}/upstart
+    - name: /var/lib/ceph/mon/{{ gs.cluster }}-{{ gs.mon_id }}/upstart
     - require:
         - service: start_mon

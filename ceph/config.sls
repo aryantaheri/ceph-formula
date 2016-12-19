@@ -3,6 +3,13 @@
 
 {% from "ceph/map.jinja" import global_settings with context %}
 
+set_cluster_name_{{ global_settings.cluster }}_in_/etc/default/ceph:
+  file.append:
+    - name: /etc/default/ceph
+    - text: "CLUSTER={{ global_settings.cluster }}"
+    - require:
+      - pkg: install_ceph
+
 {{ global_settings.conf_file }}:
   file.managed:
     - name: {{ global_settings.conf_file }}
@@ -13,6 +20,22 @@
     - template: jinja
     - require:
       - pkg: install_ceph
+      - file: set_cluster_name_{{ global_settings.cluster }}_in_/etc/default/ceph
+
+# A workaround for ceph-create-key early start
+stop_ceph-create-key_service:
+  service.dead:
+    - name: ceph-create-keys@{{ global_settings.mon_id }}.service
+    - require:
+        - pkg: install_ceph
+
+{% if salt.grains.get('init', '') == 'systemd' %}
+reload_service_unit:
+  module.run:
+    - name: service.systemctl_reload
+    - watch:
+        - file: set_cluster_name_{{ global_settings.cluster }}_in_/etc/default/ceph
+{% endif %}
 
 #cp.push {{ global_settings.conf_file }}:
 #  module.wait:
