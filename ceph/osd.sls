@@ -56,6 +56,7 @@ start_osd_{{ osd_id }}_on_{{ osd.get('data_path') }}:
       - file: {{ gs.conf_file }}
     - watch:
         - cmd: disk_prepare data:{{ osd.get('data_path') }} journal:{{ osd.get('journal_path') }} type:{{ osd.get('fs_type') }}
+        - file: {{ gs.conf_file }}
 {% endif -%}        
 
 {% endfor -%}
