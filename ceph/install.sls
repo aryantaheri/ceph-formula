@@ -21,3 +21,8 @@ install_ceph:
         - {{ pkg }}
 {%- endfor %}
 {%- endif %}
+{%- if osd_settings.get('enabled', False) %}
+{%- for pkg in osd_settings.get('pkgs', []) %}
+        - {{ pkg }}
+{%- endfor %}
+{%- endif %}

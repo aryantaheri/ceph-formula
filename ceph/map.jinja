@@ -18,7 +18,7 @@
 
 {% set osd_settings = salt['grains.filter_by']({
     'Debian': {
-        'pkgs': ['ceph', 'ceph-common'],
+        'pkgs': ['ceph-osd', 'ceph-common'],
         'services': [],
     },
     'RedHat': {

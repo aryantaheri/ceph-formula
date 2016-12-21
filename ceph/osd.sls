@@ -1,53 +1,72 @@
-# -*- coding: utf-8 -*-
-# vim: ft=sls
+{% from "ceph/map.jinja" import global_settings as gs with context %}
+{% from "ceph/map.jinja" import osd_settings with context %}
+{% set mfs = gs.minionfs_dir -%}
 
-{% from "ceph/map.jinja" import ceph_settings with context %}
+{%- if osd_settings.get('enabled', False) %}
 
 include:
-  - .roles
   - .repo
   - .install
   - .config
 
-{{ ceph_settings.bootstrap_osd_keyring }}:
+{{ gs.bootstrap_keyrings.get('osd') }}:
   cmd.run:
     - name: echo "Getting bootstrap OSD keyring"
-    - unless: test -f {{ ceph_settings.bootstrap_osd_keyring }}
+    - unless: test -f {{ gs.bootstrap_keyrings.get('osd') }}
 
-{% for mon in salt['mine.get']('roles:ceph-mon','ip_map','grain') -%}
+{% for mon in salt['mine.get']('ceph:mon:enabled:true','ip_map','pillar') -%}
 
-cp.get_file {{ mon }}{{ ceph_settings.bootstrap_osd_keyring }}:
+cp.get_file {{ mfs }}/{{ mon }}{{ gs.bootstrap_keyrings.get('osd') }}:
   module.wait:
     - name: cp.get_file
-    - path: salt://{{ mon }}/files{{ ceph_settings.bootstrap_osd_keyring }}
-    - dest: {{ ceph_settings.bootstrap_osd_keyring }}
+    - path: salt://{{ mfs }}/{{ mon }}{{ gs.bootstrap_keyrings.get('osd') }}
+    - dest: {{ gs.bootstrap_keyrings.get('osd') }}
     - watch:
-      - cmd: {{ ceph_settings.bootstrap_osd_keyring }}
+      - cmd: {{ gs.bootstrap_keyrings.get('osd') }}
 
 {% endfor -%}
 
-{% for dev in salt['pillar.get']('ceph:nodes:' + ceph_settings.minion_id + ':devs') -%}
-{% if dev -%}
-{% set journal = salt['pillar.get']('ceph:nodes:' + ceph_settings.minion_id + ':devs:' + dev + ':journal') -%}
+{% for osd in osd_settings.get('osds', []) -%}
+partprobe_disk_{{ osd.get('data_path') }}:
+  cmd.run:
+    - name: partprobe {{ osd.get('data_path') }} 
 
-disk_prepare {{ dev }}:
+disk_prepare data:{{ osd.get('data_path') }} journal:{{ osd.get('journal_path') }} type:{{ osd.get('fs_type') }}:
   cmd.run:
     - name: |
-        ceph-disk prepare --cluster {{ ceph_settings.cluster }} \
-                          --cluster-uuid {{ ceph_settings.fsid }} \
-                          --fs-type xfs /dev/{{ dev }} /dev/{{ journal }}
-    - unless: parted --script /dev/{{ dev }} print | grep 'ceph data'
+        ceph-disk prepare --cluster {{ gs.cluster }} \
+                          --cluster-uuid {{ gs.fsid }} \
+                          --fs-type {{ osd.get('fs_type', 'xfs') }} \
+                          {{ osd.get('data_path') }} \
+                          {{ osd.get('journal_path') }}
+    - unless: parted --script {{ osd.get('data_path') }} print | grep 'ceph data'
+    - require:
+        - cmd: partprobe_disk_{{ osd.get('data_path') }}
 
-disk_activate {{ dev }}1:
-  cmd.run:
-    - name: ceph-disk activate /dev/{{ dev }}1
-    - onlyif: test -f {{ ceph_settings.bootstrap_osd_keyring }}
-    - unless: ceph-disk list | egrep "/dev/{{ dev }}1.*active"
-    - timeout: 10
+# TODO: execute partprobe to load partitions and then use ceph-disk activate
 
-{% endif -%}
+{% set osd_id = salt['cmd.run']("which ceph-disk > /dev/null && ceph-disk list | grep \"" ~ osd.get('data_path') ~ "\" | awk 'match($0, /.*ceph\ data.*osd\.([0-9]+)/, a) { print a[1]}'") %}
+
+{% if osd_id != "" -%}
+start_osd_{{ osd_id }}_on_{{ osd.get('data_path') }}:
+  service.running:
+    - name: ceph-osd@{{ osd_id }}.service
+    - enable: true
+    - require:
+      - file: {{ gs.conf_file }}
+    - watch:
+        - cmd: disk_prepare data:{{ osd.get('data_path') }} journal:{{ osd.get('journal_path') }} type:{{ osd.get('fs_type') }}
+{% endif -%}        
+
 {% endfor -%}
 
-start ceph-osd-all:
-  cmd.run:
-    - onlyif: initctl list | grep "ceph-osd-all stop/waiting"
+start_osd:
+  service.running:
+    - name: ceph-osd.target
+    - enable: true
+    - require:
+      - file: {{ gs.conf_file }}
+    - watch:
+      - file: {{ gs.conf_file }}
+
+{% endif %}
