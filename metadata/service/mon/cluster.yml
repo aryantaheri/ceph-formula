@@ -2,6 +2,7 @@ applications:
 - ceph.mon
 classes:
 #- service.ceph.support
+- service.ceph.global.single
 parameters:
   ceph:
     global:
