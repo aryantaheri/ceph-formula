@@ -1,46 +1,33 @@
-# vi: set ft=yaml.jinja :
+{% from "ceph/map.jinja" import global_settings as gs with context %}
+{% from "ceph/map.jinja" import client_settings as cs with context %}
+{% set mfs = gs.minionfs_dir -%}
 
-{% from "ceph/map.jinja" import ceph_settings with context %}
+{% if cs.get('enabled', False) -%}
 
 include:
-  - .roles
   - .repo
+  - .install
+  - .config
 
-ceph-common:
-  pkg.installed:
-    - require:
-      - pkgrepo: ceph_repo
+{% if cs.get('admin', False) -%}
 
-client_{{ ceph_settings.conf_file }}:
-  cmd.run:
-    - name: echo "Getting ceph configuration file:"
-    - unless: test -f {{ ceph_settings.conf_file }}
-
-{% for mon in salt['mine.get']('roles:ceph-mon','ip_map','grain') -%}
-
-cp.get_file {{ mon }}{{ ceph_settings.conf_file }}:
-  module.wait:
-    - name: cp.get_file
-    - path: salt://{{ mon }}/files{{ ceph_settings.conf_file }}
-    - dest: {{ ceph_settings.conf_file }}
-    - watch:
-      - cmd: client_{{ ceph_settings.conf_file }}
-
-{% endfor -%}
-
-{{ ceph_settings.admin_keyring }}:
+{{ gs.admin_keyring }}:
   cmd.run:
     - name: echo "Getting admin keyring:"
-    - unless: test -f {{ ceph_settings.admin_keyring }}
+    - unless: test -f {{ gs.admin_keyring }}
 
-{% for mon in salt['mine.get']('roles:ceph-mon','ip_map','grain') -%}
+{% for mon in salt['mine.get']('ceph:mon:enabled:true','ip_map','pillar') -%}
 
-cp.get_file {{ mon }}{{ ceph_settings.admin_keyring }}:
+cp.get_file {{ mfs }}/{{ mon }}{{ gs.admin_keyring }}:
   module.wait:
     - name: cp.get_file
-    - path: salt://{{ mon }}/files{{ ceph_settings.admin_keyring }}
-    - dest: {{ ceph_settings.admin_keyring }}
+    - path: salt://{{ mfs }}/{{ mon }}{{ gs.admin_keyring }}
+    - dest: {{ gs.admin_keyring }}
     - watch:
-      - cmd: {{ ceph_settings.admin_keyring }}
+      - cmd: {{ gs.admin_keyring }}
 
 {% endfor -%}
+
+{% endif -%}
+
+{% endif -%}

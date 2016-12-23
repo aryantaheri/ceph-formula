@@ -1,0 +1,11 @@
+applications:
+- ceph.client
+classes:
+#- service.ceph.support
+- service.ceph.global.single
+parameters:
+  ceph:
+    client:
+      enabled: true
+      admin: true
+      

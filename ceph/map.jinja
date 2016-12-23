@@ -40,11 +40,11 @@
 
 {% set rgw_settings = salt['grains.filter_by']({
     'Debian': {
-        'pkgs': [],
+        'pkgs': ['radosgw'],
         'services': [],
     },
     'RedHat': {
-        'pkgs': [],
+        'pkgs': ['ceph-radosgw', 'ceph'],
         'services': [],
     },
 }, merge=salt['pillar.get']('ceph:rgw')) %}

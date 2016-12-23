@@ -1,0 +1,94 @@
+applications:
+- ceph.rgw
+classes:
+#- service.ceph.support
+- service.ceph.global.single
+parameters:
+  ceph:
+    client:
+      enabled: true
+      admin: true
+      rbd_cache: true
+      rbd_cache_writethrough_until_flush: true
+      rbd_cache_size: 134217728
+    rgw:
+      enabled: true
+      id: "rgw.${linux:network:hostname}"
+      name_prefix: "client."
+      name: "${ceph:rgw:name_prefix}${ceph:rgw:id}"
+#      radosgw_keyring: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.rgw.keyring"
+      radosgw_dirs: 
+        keyring_dir: "/var/lib/ceph/radosgw/${ceph:global:cluster}-${ceph:rgw:id}"
+        bootstrap_rgw_dir: "/var/lib/ceph/bootstrap-rgw"
+      radosgw_keyring: "${ceph:rgw:radosgw_dirs:keyring_dir}/keyring"
+      log_file: "/var/log/ceph/${ceph:global:cluster}-${ceph:rgw:name}.log"
+      port: 7480
+      pools:
+        .rgw.root:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated" # replicated | erasure
+          erasure_code_profile: ""
+          crush_ruleset_name: ""
+          expected_num_objects: ""
+        .rgw.control:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.gc:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.buckets:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.buckets.index:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.buckets.extra:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .log:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .intent-log:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .usage:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .users:
+          pg_num: 64
+          pgp_num: 64
+          size: 3
+          type: "replicated"           
+        .users.email:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .users.swift:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .users.uid:
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
