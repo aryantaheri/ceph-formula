@@ -26,3 +26,13 @@ install_ceph:
         - {{ pkg }}
 {%- endfor %}
 {%- endif %}
+{%- if rgw_settings.get('enabled', False) %}
+{%- for pkg in rgw_settings.get('pkgs', []) %}
+        - {{ pkg }}
+{%- endfor %}
+{%- endif %}
+{%- if client_settings.get('enabled', False) %}
+{%- for pkg in client_settings.get('pkgs', []) %}
+        - {{ pkg }}
+{%- endfor %}
+{%- endif %}
