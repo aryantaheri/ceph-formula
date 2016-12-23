@@ -1,0 +1,50 @@
+applications:
+- ceph.osd
+classes:
+- service.ceph.global.single
+parameters:
+  ceph:
+    osd:
+      enabled: true
+      osds:
+        - data_path: /dev/loop2
+          journal_path: /dev/loop4
+          fs_type: xfs
+        - data_path: /dev/loop3
+          journal_path: /dev/loop4
+          fs_type: xfs
+      configs:
+        # http://docs.ceph.com/docs/master/rados/configuration/osd-config-ref/
+        # osd journal size = {2 * (expected throughput * filestore max sync interval)} MB
+        # expected throughput = min (disk throughput, network througput)
+        osd_journal_size: 100000
+
+        osd_pool_default_size: 3
+        osd_pool_default_min_size: 1
+        # default pg num = (100 * #OSDs) / pool_size                                           
+        osd_pool_default_pg_num: 512
+        osd_pool_default_pgp_num: 512
+
+        osd_crush_chooseleaf_type: 1
+        osd_crush_update_on_start: "true"
+
+        osd_op_threads: 2
+        osd_disk_threads: 1
+        osd_max_backfills: 2
+        osd_map_cache_size: 512
+        osd_scrub_load_threshold: "0.5"
+
+        # http://docs.ceph.com/docs/master/rados/configuration/filestore-config-ref/
+        filestore_merge_threshold: 10
+        filestore_split_multiple: 2
+        filestore_op_threads: 2
+        filestore_max_sync_interval: 5
+        filestore_min_sync_interval: "0.01"
+        filestore_queue_max_ops: 500
+        filestore_queue_max_bytes: 104857600
+        filestore_queue_committing_max_ops: 500
+        filestore_queue_committing_max_bytes: 104857600
+
+
+
+        
