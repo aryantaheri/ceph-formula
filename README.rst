@@ -49,7 +49,7 @@ Installs the ceph package, and starts the associated  service.
 
 ``rgw``
 ------------
-Just one instance of radosgw is supported now. So, there should be a single node with ceph-rgw role.
+
 
 
 ``client``
