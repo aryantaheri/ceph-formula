@@ -18,7 +18,7 @@
 
 {% set osd_settings = salt['grains.filter_by']({
     'Debian': {
-        'pkgs': ['ceph-osd', 'ceph-common'],
+        'pkgs': ['ceph-osd', 'ceph-common', 'gawk'],
         'services': [],
     },
     'RedHat': {
@@ -40,11 +40,11 @@
 
 {% set rgw_settings = salt['grains.filter_by']({
     'Debian': {
-        'pkgs': ['radosgw'],
+        'pkgs': ['radosgw', 'libnss3-tools'],
         'services': [],
     },
     'RedHat': {
-        'pkgs': ['ceph-radosgw', 'ceph'],
+        'pkgs': ['ceph-radosgw', 'ceph', 'nss-tools'],
         'services': [],
     },
 }, merge=salt['pillar.get']('ceph:rgw')) %}
