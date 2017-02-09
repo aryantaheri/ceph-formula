@@ -16,8 +16,8 @@ set_cluster_name_{{ global_settings.cluster }}_in_/etc/default/ceph:
     - name: {{ global_settings.conf_file }}
     - source: salt://ceph/files/ceph.conf
     - mode: 0644
-    - user: root
-    - group: root
+    - user: {{ global_settings.ceph_user }}
+    - group: {{ global_settings.ceph_group }}
     - template: jinja
     - require:
       - pkg: install_ceph
