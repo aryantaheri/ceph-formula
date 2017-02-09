@@ -7,5 +7,13 @@ parameters:
   ceph:
     client:
       enabled: true
-      admin: true
+      users:
+        client.glance:
+          keyring_file: "/etc/ceph/${ceph:global:cluster}.client.glance.keyring"
+        client.cinder:
+          keyring_file: "/etc/ceph/${ceph:global:cluster}.client.cinder.keyring"
+        client.cinder-backup:
+          keyring_file: "/etc/ceph/${ceph:global:cluster}.client.cinder-backup.keyring"
+
+        
       

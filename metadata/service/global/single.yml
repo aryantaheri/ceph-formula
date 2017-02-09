@@ -5,14 +5,13 @@ classes:
 parameters:
   ceph:
     global:
-      version: jewel
-#      cluster: ${_param:ceph_cluster_name}
-      cluster: nucceph
+      version: ${_param:ceph_version}
+      cluster: ${_param:ceph_cluster_name}
+#      cluster: nucceph
       conf_dir: "/etc/ceph"
       conf_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.conf"
       tmp_dir: "/var/lib/ceph/tmp"
       minionfs_dir: "minionfs"
-#      host_fqdn: ${linux:network:fqdn}
       mon_id: ${linux:network:hostname}
       ceph_user: ceph
       ceph_group: ceph

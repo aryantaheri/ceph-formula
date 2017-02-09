@@ -5,27 +5,6 @@ classes:
 - service.ceph.global.single
 parameters:
   ceph:
-    global:
-      version: jewel
-#      cluster: ${_param:ceph_cluster_name}
-      cluster: nucceph
-      conf_dir: "/etc/ceph"
-      conf_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.conf"
-      tmp_dir: "/var/lib/ceph/tmp"
-      minionfs_dir: "minionfs"
-#      host_fqdn: ${linux:network:fqdn}
-      mon_id: ${linux:network:hostname}
-      ceph_user: ceph
-      ceph_group: ceph
-      admin_keyring: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.admin.keyring"
-      bootstrap_keyrings:
-        osd: "/var/lib/ceph/bootstrap-osd/${ceph:global:cluster}.keyring"
-        mds: "/var/lib/ceph/bootstrap-mds/${ceph:global:cluster}.keyring"
-        rgw: "/var/lib/ceph/bootstrap-rgw/${ceph:global:cluster}.keyring"
-      fsid: ac96753d-f48c-42fd-b071-40a07989d90b
-      public_network: ${linux:network:networks:service_net:net_address}
-      cluster_network: ${linux:network:networks:storage_net:net_address}
-
     mon:
       enabled: true
       interface: ${linux:network:networks:service_net:interface}

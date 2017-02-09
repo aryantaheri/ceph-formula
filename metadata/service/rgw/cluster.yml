@@ -7,24 +7,49 @@ parameters:
   ceph:
     client:
       enabled: true
-      admin: true
       rbd_cache: true
       rbd_cache_writethrough_until_flush: true
       rbd_cache_size: 134217728
+      users:
+        client.admin:
+          keyring_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.admin.keyring"
     rgw:
       enabled: true
       id: "rgw.${linux:network:hostname}"
       name_prefix: "client."
       name: "${ceph:rgw:name_prefix}${ceph:rgw:id}"
-#      radosgw_keyring: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.rgw.keyring"
       radosgw_dirs: 
         keyring_dir: "/var/lib/ceph/radosgw/${ceph:global:cluster}-${ceph:rgw:id}"
         bootstrap_rgw_dir: "/var/lib/ceph/bootstrap-rgw"
+        log_dir: "/var/log/ceph"
+        nss_db_dir: "/var/lib/ceph/nss"
       radosgw_keyring: "${ceph:rgw:radosgw_dirs:keyring_dir}/keyring"
-      log_file: "/var/log/ceph/${ceph:global:cluster}-${ceph:rgw:name}.log"
       port: 7480
+      # RGW doesn't accept address:port format, 
+      # so we should use a different port for loadbalancing
+      # e.g. 7481
+      lb_port: ${_param:ceph_rgw_service_port}
+      identity:
+        engine: keystone
+        host: ${_param:keystone_service_host}
+        port: 35357
+        protocol: http
+        version: 2
+        url: "${ceph:rgw:identity:protocol}://${ceph:rgw:identity:host}:${ceph:rgw:identity:port}/"
+        user: ceph
+        password: ${_param:keystone_ceph_rgw_password}
+        tenant: service
+#        domain:
+#        project:
+        accepted_roles:
+          - admin 
+          - Member 
+          - _member_
+          - swiftoperator
+        verify_ssl: false
       pools:
         .rgw.root:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
@@ -33,61 +58,109 @@ parameters:
           crush_ruleset_name: ""
           expected_num_objects: ""
         .rgw.control:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.data.root:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .rgw.gc:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .rgw.buckets:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.buckets.data:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .rgw.buckets.index:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .rgw.buckets.extra:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
+        .rgw.log:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.users.keys:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"           
+        .rgw.users.swift:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"
+        .rgw.users.uid:
+          action: create
+          pg_num: 128
+          pgp_num: 128
+          size: 3
+          type: "replicated"
         .log:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .intent-log:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .usage:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .users:
+          action: create
           pg_num: 64
           pgp_num: 64
           size: 3
           type: "replicated"           
         .users.email:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .users.swift:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3
           type: "replicated"           
         .users.uid:
+          action: create
           pg_num: 128
           pgp_num: 128
           size: 3

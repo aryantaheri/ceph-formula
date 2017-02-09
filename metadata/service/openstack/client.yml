@@ -1,0 +1,15 @@
+applications:
+- ceph.client
+classes:
+- service.ceph.global.single
+parameters:
+  ceph:
+    client:
+      enabled: true
+      users:
+        client.glance:
+          keyring_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.glance.keyring"
+        client.cinder:
+          keyring_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.cinder.keyring"
+        client.cinder-backup:
+          keyring_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.cinder-backup.keyring"
