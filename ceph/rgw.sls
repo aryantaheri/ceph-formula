@@ -1,5 +1,8 @@
 {% from "ceph/map.jinja" import global_settings as gs with context %}
 {% from "ceph/map.jinja" import rgw_settings as rs with context %}
+{% from "ceph/macros.sls" import create_pool with context %}
+{% from "ceph/macros.sls" import set_pool_param with context %}
+{% from "ceph/macros.sls" import wait_for_pool with context %}
 {% set mfs = gs.minionfs_dir -%}
 
 {% if rs.get('enabled', False) -%}
@@ -65,6 +68,32 @@ set_rgw_keyring_permissions:
     - watch:
         - cmd: get_or_create_{{ rs.radosgw_keyring }}
 
+{%- if rs.identity is defined and rs.identity.get('engine', '') == 'keystone' %}
+create_nss_ca_for_keystone:
+  cmd.run:
+    - name: |
+        openssl x509 -in /etc/keystone/ssl/certs/ca.pem -pubkey | \
+        certutil -d {{ rs.radosgw_dirs.nss_db_dir }} -A -n ca -t "TCu,Cu,Tuw"
+
+create_nss_signing_cert_for_keystone:
+  cmd.run:
+    - name: |
+        openssl x509 -in /etc/keystone/ssl/certs/signing_cert.pem -pubkey | \
+        certutil -A -d {{ rs.radosgw_dirs.nss_db_dir }} -n signing_cert -t "P,P,P"
+
+set_nss_permissions:
+  file.directory:
+    - name: {{ rs.radosgw_dirs.nss_db_dir }}
+    - user: {{ gs.ceph_user }}
+    - group: {{ gs.ceph_group }}
+    - recurse:
+        - user
+        - group
+    - watch:
+        - cmd: create_nss_ca_for_keystone
+        - cmd: create_nss_signing_cert_for_keystone
+{%- endif %}
+
 start_rgw:
   service.running:
     - name: ceph-radosgw@{{ rs.id }}
@@ -79,47 +108,16 @@ start_rgw:
 
 {% for name, pool in rs.pools.iteritems() -%}
 
-create_radosgw_pool_{{ name }}:
-  cmd.run:
-    - name: | 
-        ceph --cluster {{ gs.cluster }} osd pool create {{ name }} \
-        {{ pool.get('pg_num') }} \
-        {{ pool.get('pgp_num') }} \
-        {{ pool.get('type', 'replicated') }} \
-        {{ pool.get('erasure_code_profile', '') }} \
-        {{ pool.get('crush_ruleset_name', '') }} \
-        {{ pool.get('expected_num_objects', '') }}
-    - unless: ceph --cluster {{ gs.cluster }} osd pool stats {{ name }}
+{%- if pool.get('action', '') == 'create' %}
+{{ create_pool(name, pool, 'service: start_rgw') }}
+{#{{ wait_for_pool(name, 'service: start_rgw') }}#}
+{%- endif %}
 
-set_radosgw_pool_{{ name }}_size_{{ pool.get('size') }}:
-  cmd.run:
-    - name: ceph --cluster {{ gs.cluster }} osd pool set {{ name }} size {{ pool.get('size') }}
-    - require:
-        - cmd: create_radosgw_pool_{{ name }}
-    - unless: ceph --cluster {{ gs.cluster }} osd pool get {{ name }} size | grep " {{ pool.get('size') }}$"
-
-
-set_radosgw_pool_{{ name }}_pg_num_{{ pool.get('pg_num') }}:
-  cmd.run:
-    - name: ceph --cluster {{ gs.cluster }} osd pool set {{ name }} pg_num {{ pool.get('pg_num') }}
-    - require:
-        - cmd: create_radosgw_pool_{{ name }}
-    - unless: ceph --cluster {{ gs.cluster }} osd pool get {{ name }} pg_num | grep " {{ pool.get('pg_num') }}$"
-
-set_radosgw_pool_{{ name }}_pgp_num_{{ pool.get('pgp_num') }}:
-  cmd.run:
-    - name: ceph --cluster {{ gs.cluster }} osd pool set {{ name }} pgp_num {{ pool.get('pgp_num') }}
-    - require:
-        - cmd: create_radosgw_pool_{{ name }}
-    - unless: ceph --cluster {{ gs.cluster }} osd pool get {{ name }} pgp_num | grep " {{ pool.get('pgp_num') }}$"
-
-wait_for_radosgw_pool_creation_{{ name }}:
-  cmd.run:
-    - name: |
-        while [ $(ceph --cluster {{ gs.cluster }} -s | grep creating -c) -gt 0 ]; do echo -n .;sleep 1; done
-    - require:
-        - cmd: set_radosgw_pool_{{ name }}_pgp_num_{{ pool.get('pgp_num') }}
-
+{%- if pool.get('action', '') == 'update' %}
+{{ set_pool_param(name, pool, 'size') }}
+{{ set_pool_param(name, pool, 'pg_num') }}
+{{ set_pool_param(name, pool, 'pgp_num') }}
+{%- endif %}
 
 {% endfor -%}
 
