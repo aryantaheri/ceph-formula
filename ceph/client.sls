@@ -1,5 +1,6 @@
 {% from "ceph/map.jinja" import global_settings as gs with context %}
 {% from "ceph/map.jinja" import client_settings as cs with context %}
+{% from "ceph/macros.sls" import get_file_from_mon with context %}
 {% set mfs = gs.minionfs_dir -%}
 
 {% if cs.get('enabled', False) -%}
@@ -9,25 +10,9 @@ include:
   - .install
   - .config
 
-{% if cs.get('admin', False) -%}
-
-{{ gs.admin_keyring }}:
-  cmd.run:
-    - name: echo "Getting admin keyring:"
-    - unless: test -f {{ gs.admin_keyring }}
-
-{% for mon in salt['mine.get']('ceph:mon:enabled:true','ip_map','pillar') -%}
-
-cp.get_file {{ mfs }}/{{ mon }}{{ gs.admin_keyring }}:
-  module.wait:
-    - name: cp.get_file
-    - path: salt://{{ mfs }}/{{ mon }}{{ gs.admin_keyring }}
-    - dest: {{ gs.admin_keyring }}
-    - watch:
-      - cmd: {{ gs.admin_keyring }}
-
+{% for name, user in cs.users.iteritems() -%}
+{{ get_file_from_mon(user.keyring_file, user.keyring_file, gs.ceph_user, gs.ceph_group) }}
 {% endfor -%}
 
-{% endif -%}
 
 {% endif -%}
