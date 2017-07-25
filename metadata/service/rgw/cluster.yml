@@ -15,6 +15,7 @@ parameters:
           keyring_file: "${ceph:global:conf_dir}/${ceph:global:cluster}.client.admin.keyring"
     rgw:
       enabled: true
+      dns_name: ${_param:storage_public_dns_name}
       id: "rgw.${linux:network:hostname}"
       name_prefix: "client."
       name: "${ceph:rgw:name_prefix}${ceph:rgw:id}"
@@ -83,8 +84,8 @@ parameters:
           type: "replicated"           
         .rgw.buckets.data:
           action: create
-          pg_num: 128
-          pgp_num: 128
+          pg_num: 512
+          pgp_num: 512
           size: 3
           type: "replicated"           
         .rgw.buckets.index:
