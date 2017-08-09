@@ -30,6 +30,7 @@ parameters:
       # so we should use a different port for loadbalancing
       # e.g. 7481
       lb_port: ${_param:ceph_rgw_service_port}
+      lb_port_ssl: ${_param:ceph_rgw_service_port_ssl}
       identity:
         engine: keystone
         host: ${_param:keystone_service_host}
